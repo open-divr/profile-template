@@ -1,0 +1,8 @@
+node_modules/
+dist/
+build.log
+tail.log
+.env
+.env.*
+bundle.tar.gz
+source.tar.gz

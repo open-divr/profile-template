@@ -1,0 +1,30 @@
+{
+  "name": "profile-template",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT-0",
+  "type": "module",
+  "description": "Starter profile repository; also the source of the platform's default bundle.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "verify": "npm run build && profile-check dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "update-sdk": "npm install @divr/profile-sdk@latest"
+  },
+  "dependencies": {
+    "@divr/profile-sdk": "1.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.4"
+  }
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 16 16">
+  <defs><clipPath id="c"><circle cx="8" cy="8" r="8"/></clipPath></defs>
+  <g clip-path="url(#c)">
+    <rect width="16" height="16" fill="#0a1d57"/>
+    <path shape-rendering="crispEdges" fill="#86c2cc" d="M6 3h4v1h1v4h-1v1H6V8H5V4h1zM4 10h8v1h1v1h1v4H2v-4h1v-1h1z"/>
+  </g>
+</svg>

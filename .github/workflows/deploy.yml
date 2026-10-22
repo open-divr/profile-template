@@ -1,0 +1,50 @@
+name: Deploy profile
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: profile-deploy
+  cancel-in-progress: true
+jobs:
+  build:                         # your code and dependencies run here; this job cannot mint deploy tokens
+    runs-on: ubuntu-24.04
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .nvmrc }
+      - run: npm ci --ignore-scripts
+      - run: set -o pipefail; npm run build 2>&1 | tee build.log
+      # Same rules the server enforces. Appended to build.log so a failed check shows on your config page.
+      - run: set -o pipefail; npx --no-install profile-check dist 2>&1 | tee -a build.log
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: dist, path: dist/, if-no-files-found: error, retention-days: 1 }
+      # The committed tree, for members who fork your profile's source. The platform keeps it only while
+      # you allow forks (Config page); otherwise it is discarded on arrival.
+      - run: git archive --format=tar.gz -o source.tar.gz HEAD
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: source, path: source.tar.gz, if-no-files-found: error, retention-days: 1 }
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: build-log, path: build.log, retention-days: 1 }
+
+  deploy:                        # the only job that can mint a token; it runs no npm code
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false, sparse-checkout: scripts/deploy.sh, sparse-checkout-cone-mode: false }
+      # v4 on purpose: from v5 on, a pattern matching a single artifact is unpacked without the
+      # artifact-name directory (dist/, source/ or build-log/) that scripts/deploy.sh reads from.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        continue-on-error: true
+        with: { pattern: "{dist,source,build-log}" }
+      - env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          API_URL: ${{ vars.PROFILE_API_URL }}         # unset in normal use; points at a tunnel when rehearsing
+        run: scripts/deploy.sh

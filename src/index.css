@@ -1,0 +1,162 @@
+@import 'tailwindcss';
+
+/*
+ * Figtree, bundled (remote fonts are blocked inside the profile frame). Each subset downloads only when its
+ * characters appear on the page. Licence: assets/fonts/OFL.txt.
+ */
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 900;
+  src: url('./assets/fonts/figtree-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 900;
+  src: url('./assets/fonts/figtree-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/*
+ * Palette and type. Change these to restyle every component at once. The ocean swatch (abyss, deep, surf) is the
+ * platform's own; panels are near-black navy so text on them stays far above AA contrast whatever the water does.
+ */
+@theme {
+  --color-page: #000000;
+  --color-abyss: #071777;
+  --color-deep: #0c3aa2;
+  --color-surf: #2da9dc;
+  /* Where the deep water ends up: almost black, with a trace of the deep blue. */
+  --color-trench: #020617;
+  --color-surface: #050f30;
+  --color-raised: #0a1d57;
+  --color-ink: #e9eefb;
+  --color-muted: #86c2cc;
+  /* The one solid control: ice blue with navy text (11:1). */
+  --color-primary: #cae8f3;
+  --color-primary-hover: #e2f3fa;
+  --color-primary-ink: #071777;
+  /* Glow: state only (focus rings). */
+  --color-accent: #49f3f0;
+  --color-edge: rgb(202 232 243 / 0.34);
+  --color-line: rgb(45 169 220 / 0.22);
+  --color-placeholder: rgb(45 169 220 / 0.14);
+  --color-warn: #f5c451;
+  --font-sans: 'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-display: 'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    color-scheme: dark;
+    background: var(--color-page);
+  }
+  body {
+    @apply bg-page font-sans text-[15px] leading-normal text-ink antialiased;
+  }
+  ::selection {
+    background: rgb(73 243 240 / 0.35);
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: default;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+  /* The page stays put behind an open sheet. */
+  :root:has(dialog.sheet[open]) {
+    overflow: hidden;
+  }
+}
+
+@layer components {
+  /* A box on the water: square, a crisp light edge and a hard offset shadow, like a window from 1998. */
+  .panel {
+    @apply border border-edge bg-surface shadow-[4px_4px_0_rgb(0_0_0/0.45)];
+  }
+  /* The bar across the top of a panel, in place of the old bright blue and orange ones. */
+  .panel-bar {
+    @apply flex min-h-9 items-center gap-2 border-b border-edge bg-abyss px-4 py-2 text-xs leading-tight font-bold tracking-[0.1em] text-primary uppercase [overflow-wrap:anywhere];
+  }
+  /* Small caps label inside a panel. */
+  .label {
+    @apply text-[11px] leading-tight font-bold tracking-[0.12em] text-muted uppercase;
+  }
+  .btn-primary {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 border border-primary bg-primary px-5 text-base font-bold text-primary-ink shadow-[inset_-2px_-2px_0_rgb(7_23_119/0.22),inset_2px_2px_0_rgb(255_255_255/0.6)] hover:bg-primary-hover;
+  }
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 border border-edge bg-surface px-4 text-sm font-semibold text-primary hover:bg-raised disabled:opacity-60;
+  }
+  /* A text-sized control that still has a 44 px tall hit area. */
+  .btn-text {
+    @apply inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary underline decoration-edge underline-offset-4 hover:decoration-primary;
+  }
+  /*
+   * A box opened from the single column's menu: a modal dialog pinned to the bottom of the frame, as wide as the
+   * column, scrolling inside itself with its bar held at the top.
+   */
+  .sheet {
+    @apply mx-auto mt-auto mb-0 max-h-[85dvh] w-full max-w-[42rem] overflow-y-auto overscroll-contain border-0 bg-transparent p-0 text-ink;
+  }
+  .sheet::backdrop {
+    background: rgb(0 0 0 / 0.7);
+  }
+  .sheet .panel-bar {
+    @apply sticky top-0 z-10;
+  }
+  .prose-text {
+    @apply max-w-[62ch] text-[15px] leading-relaxed whitespace-pre-line [overflow-wrap:anywhere];
+  }
+}
+
+/*
+ * The water behind the page, drawn by components/Water.tsx: each layer is a block of colour whose crest row sits on
+ * its top edge. It starts 160 px left of the page, as on the platform's front page, and is clipped to the page.
+ */
+.water {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.water-layer {
+  position: absolute;
+  left: -160px;
+  right: 0;
+  bottom: 0;
+}
+
+/*
+ * The front layer darkens with depth: deep blue at its crests, near-black --trench-depth below them, and near-black
+ * from there on however long the page grows. The depth is fixed rather than a share of the page height, so loading
+ * more posts never stretches the fade; it lands near the end of a first page of posts at each width.
+ */
+.water-fade {
+  --trench-depth: 4000px;
+  background: linear-gradient(in oklab, var(--color-deep), var(--color-trench) var(--trench-depth));
+}
+
+@media (min-width: 64rem) {
+  .water-fade {
+    --trench-depth: 3000px;
+  }
+}
+
+/* Overlaps the body by a pixel so no seam shows between the crests and the water below them. */
+.water-crest {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: -1px;
+  max-width: none;
+}
