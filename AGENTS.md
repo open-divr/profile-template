@@ -326,6 +326,7 @@ account's daily deploy limit.
 8. Open the page at full width with `?pfDebug=1` and watch the console. Without any input, it must log
    `sdk.read_started` for `profile.get`, `followers.count`, `following.count` and `posts.list`. Then click each
    control once, with real clicks (a browser automation click works; `element.click()` from a script does not).
+   If the page never stands still, read [Pages that keep moving](#pages-that-keep-moving) first.
    - Each click shows a toast naming the platform surface it would open.
    - A red toast or a `mock.ui_call_refused` warning means the call would be refused live. Fix it.
 9. Optional: run `npm run preview` and repeat the scenario checks against the production build.
@@ -339,6 +340,25 @@ The checks cannot prove:
 
 Steps 6 to 8 cover these. Live, the platform also records missing required reads, and viewers can report the
 profile.
+
+### Pages that keep moving
+
+Browser automation assumes that a page settles. Playwright, and tools like it, wait for an element to stop moving
+before they click it. Screenshot comparisons expect two captures of the same state to match, and "wait until idle"
+helpers expect animations to finish. A profile with continuous motion breaks all three. Examples are an animated
+background, boxes that drift or bob, a canvas or WebGL scene redrawn every frame, a marquee, or a CSS animation set
+to `infinite`. The symptoms:
+
+- clicks that time out with "element is not stable", although the control is plainly there;
+- screenshots that differ on every run;
+- waits that never resolve.
+
+Nothing is wrong with the controls. The automation is waiting for a stillness that never comes. Which way round it
+works depends on the profile, so decide case by case. Hold to two things whatever you choose:
+
+- Steps 7 and 8 still have to pass in full.
+- At least once, click each control while the page is moving, as a viewer would, and confirm that it responds. A
+  control that only works once the motion stops is broken for every viewer.
 
 ## Staying current
 
@@ -453,6 +473,7 @@ Where the outcome shows:
 | `secrets.<kind>` | a credential in a text file of `dist/` (source maps count) | remove it from the source and rotate it; it became public when it was pushed |
 | `profile-check: warning: … newer than this copy` | the platform runs a newer checker | `npm run update-sdk`, then verify again |
 | works in `npm run dev`, broken or blank live | something the sandbox or CSP blocks: remote asset, `fetch`, storage, `eval`, inline script, absolute asset path | read the browser console on the live profile; bundle the asset, remove the call, keep `base: './'` |
+| browser automation times out on a visible control ("element is not stable"), or screenshots never match | the page or the control moves continuously | see [Pages that keep moving](#pages-that-keep-moving) |
 | a click does nothing live (`sdk.ui_refused` in the console) | not called from a real click, target not from a read, a platform dialog open, or two actions in a row | call the method synchronously in the handler, with values from reads |
 | `contract.missing` recorded for the live profile | a required read is not made within 10 s | make all four reads on mount at every width |
 | deploy job 403 `oidc_claim_rejected` | repository owned by an organisation; no Divr account for the owning GitHub account; account suspended; not `main`; account linked to another repository, or repository linked to another account | use a repository under the account owner's personal GitHub account; unlink the old repository on the config page |
