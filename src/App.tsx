@@ -14,7 +14,7 @@ import { useWideLayout } from './layout';
 /**
  * The example profile, laid out like the profile pages of the mid-2000s on the platform's water. Two columns from
  * 1024 px: who it is and how to reach them on the left (identity with both counts, the Follow / More / Fork box,
- * links, projects); what they say on the right (About me, the Friend Space and the wall). One column below
+ * the Friend Space, links, projects); what they say on the right (About me and the wall). One column below
  * that: identity with the counts and the owner's controls, About me cut to its first lines, a menu row
  * opening the Friend Space, links and projects as sheets, then the wall, which scrolls without end.
  *
@@ -42,7 +42,7 @@ export function App({ onError }: { onError: (error: unknown) => void }) {
   const contact = box('contact', <ContactBox name={name} />);
   const about = box('about', <AboutBox profile={profile} clamp={!wide} />);
   const links = box('links', <LinksBox profile={p} />);
-  const friends = box('friends', <FollowersBox name={name} followerCount={followerCount} />);
+  const friends = box('friends', <FollowersBox name={name} followerCount={followerCount} inColumn={wide} />);
   const projectsBox = box('projects', <Projects name={name} projects={projects} />);
   const posts = box('posts', <PostList name={name} />);
 
@@ -62,11 +62,11 @@ export function App({ onError }: { onError: (error: unknown) => void }) {
       >
         <div className={`flex min-w-0 flex-col ${wide ? 'gap-6' : 'gap-4'}`}>
           {wide
-            ? [identity, contact, links, projectsBox]
+            ? [identity, contact, friends, links, projectsBox]
             : [identity, ...(p?.description === '' ? [] : [about]), box('menu', <MoreMenu name={name} sections={sections} />)]}
         </div>
         <div className={`flex min-w-0 flex-col ${wide ? 'gap-6' : 'gap-4'}`}>
-          {wide ? [about, friends, posts] : [posts]}
+          {wide ? [about, posts] : [posts]}
         </div>
       </main>
     </div>

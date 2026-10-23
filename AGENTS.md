@@ -270,8 +270,8 @@ follows the rules above.
 
 **Layouts.** `App.tsx` builds both arrangements from the same boxes, using `useWideLayout()`:
 
-- From 1024 px, two columns. Left: identity with both counts, `ContactBox` (the owner controls), links, projects.
-  Right: About me, Friend Space, posts.
+- From 1024 px, two columns. Left: identity with both counts, `ContactBox` (the owner controls), Friend Space
+  (faces two across), links, projects. Right: About me, posts.
 - Below 1024 px, one column: identity with the counts and the owner controls (`withControls`), About me clamped
   (left out when the description is empty), `MoreMenu`, then posts.
 - The posts sit in the second grid column in both layouts, so crossing the breakpoint does not remount the list or

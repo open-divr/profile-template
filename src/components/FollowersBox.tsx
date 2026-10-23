@@ -8,11 +8,20 @@ import { ICON, Panel, PixelIcon, Skeleton, ownersTitle } from './ui';
 const SHOWN = 8;
 
 /**
- * The Friend Space: a row of the newest followers' faces and the control that opens the platform's Followers
- * page. Both are optional (the counts, which are required, sit in the header); when the faces cannot be fetched
- * the box is the View all control alone.
+ * The Friend Space: the newest followers' faces and the control that opens the platform's Followers page. Both
+ * are optional (the counts, which are required, sit in the header); when the faces cannot be fetched the box is
+ * the View all control alone. In the two-column layout the box stands in the narrow left column, so the faces
+ * run two across and down; in a phone sheet they run four or eight across.
  */
-export function FollowersBox({ name, followerCount }: { name: string | undefined; followerCount: QueryResult<number> }) {
+export function FollowersBox({
+  name,
+  followerCount,
+  inColumn,
+}: {
+  name: string | undefined;
+  followerCount: QueryResult<number>;
+  inColumn: boolean;
+}) {
   const api = useProfileApi();
   const { followers, error, isLoading } = useFollowers({ limit: SHOWN });
   const facesFailed = error !== undefined && followers.length === 0;
@@ -32,7 +41,7 @@ export function FollowersBox({ name, followerCount }: { name: string | undefined
         {showFaces && (
           <div>
             <h3 className="label">Newest followers</h3>
-            <ul className="mt-2 grid grid-cols-4 gap-1 sm:grid-cols-8">
+            <ul className={`mt-2 grid gap-1 ${inColumn ? 'grid-cols-2' : 'grid-cols-4 sm:grid-cols-8'}`}>
               {followers.length === 0
                 ? Array.from({ length: Math.min(SHOWN, followerCount.data ?? 4) }, (_, i) => (
                     <li key={i} className="flex flex-col items-center gap-1.5 p-1.5" aria-hidden="true">
