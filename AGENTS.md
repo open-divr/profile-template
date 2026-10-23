@@ -13,13 +13,14 @@ with this file, the package is right.
 
 ## Platform constraints
 
-The browser enforces these on every viewer's screen. `npm run verify` checks only a few of them, so a build can
+The browser enforces most of these on every viewer's screen. `npm run verify` checks only a few of them, so a build can
 break them, pass the checks and still fail live.
 
 - **Sandbox.** The frame is `sandbox="allow-scripts"` with an opaque origin. There are no cookies and no storage:
   `localStorage`, `sessionStorage`, IndexedDB and `document.cookie` throw. Keep state in memory.
-- **No network except the SDK.** `connect-src 'none'` blocks `fetch`, XHR, WebSocket, EventSource and beacons. Import
-  any data at build time (for example a JSON import).
+- **No fetch, XHR, WebSocket or beacons.** `connect-src 'none'` blocks them and EventSource. `RTCPeerConnection` is
+  banned below. Import any data at build time (for example a JSON
+  import).
 - **Everything comes from the bundle.** Scripts, styles, fonts and media load only from the deploy's own path. This
   rules out CDNs, remote fonts (Google Fonts included), remote stylesheets and remote scripts. Images can also be
   the platform's own image URLs that reads return (avatars, post images), `data:` or `blob:`. Fonts can be bundled
@@ -38,8 +39,12 @@ break them, pass the checks and still fail live.
 - **Everything shipped is public.** Anyone can download the deployed files, including source maps, bundled JSON and
   every `import.meta.env.VITE_*` value. While **Allow forks** is on, any signed-in member can also download the
   committed source. Keep secrets, private notes and other people's personal data out of the repository.
-- **The viewer is private.** The page learns two facts about who is looking: `viewerIsOwner()` and
-  `viewerFollowsOwner()`. It has no way to send either one anywhere.
+- **Treat the viewer as private.** The page learns two facts about who is looking: `viewerIsOwner()` and
+  `viewerFollowsOwner()`. Do not send either anywhere: not through `RTCPeerConnection` (banned; some browsers do not
+  enforce the restriction), and not by choosing which link to offer through `openLink(url)` by either fact, because the
+  site it opens sees the address. Call `openFollow()` only from a control the viewer presses to follow: it follows the
+  owner at once for a signed-in viewer who does not follow yet, so any other click would follow them without their
+  asking.
 
 ## Setup from zero
 
