@@ -18,6 +18,11 @@ jobs:
         with: { node-version-file: .nvmrc }
       - run: npm ci --ignore-scripts
       - run: set -o pipefail; npm run build 2>&1 | tee build.log
+      # The preview image (dist/preview/tile.webp): profile-preview renders the built profile on fixture data in
+      # the runner's Chrome (GitHub's Ubuntu images ship one). Without a browser it warns and the deploy carries
+      # no preview; it never fails the build. A self-hosted runner without Chrome can run
+      # `npx --no-install playwright-core install --only-shell chromium` first, or drop this step.
+      - run: set -o pipefail; npx --no-install profile-preview dist 2>&1 | tee -a build.log
       # Same rules the server enforces. Appended to build.log so a failed check shows on your config page.
       - run: set -o pipefail; npx --no-install profile-check dist 2>&1 | tee -a build.log
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

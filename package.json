@@ -9,12 +9,13 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
-    "verify": "npm run build && profile-check dist",
+    "render-preview": "profile-preview dist",
+    "verify": "npm run build && profile-preview dist && profile-check dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "update-sdk": "npm install @divr/profile-sdk@latest"
   },
   "dependencies": {
-    "@divr/profile-sdk": "1.0.0",
+    "@divr/profile-sdk": "1.1.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

@@ -98,9 +98,11 @@ Compare the installed version with `checkerVersion`:
 | `npm run typecheck` | `tsc --noEmit` over `src/` |
 | `npm run build` | type-checks, then builds the static site into `dist/` |
 | `npm run preview` | serves the built `dist/` (also in mock mode) |
-| `npm run verify` | `build`, then `profile-check dist`: the platform's deploy checks, with the SDK judged against the checker version https://divr.space runs (against the installed one when offline). Exit 0 pass, 1 findings, 2 usage or read error |
+| `npm run render-preview` | `profile-preview dist`: renders the built profile in a headless Chromium and writes `dist/preview/tile.webp` ([Preview image](#preview-image)). Exit 0 written or skipped, 1 not written with `--strict`, 2 usage error or no `dist/index.html` |
+| `npm run verify` | `build`, then `profile-preview dist`, then `profile-check dist`: the platform's deploy checks, with the SDK judged against the checker version https://divr.space runs (against the installed one when offline). Exit 0 pass, 1 findings, 2 usage or read error |
 | `npx profile-check --json dist` | the same report as JSON (`findings: [{ check, code, message, file, line }]`) |
 | `npx profile-check --version` | the installed checker version, which is also the installed SDK version |
+| `npx profile-preview --json dist` | the render outcome as JSON (`status`, `files`, `timings`, `requiredReadsDone`, `pageErrors`) |
 | `npm run update-sdk` | `npm install @divr/profile-sdk@latest`: updates the SDK, the React bindings and the checker together |
 
 ## API
@@ -432,14 +434,36 @@ git diff "$base" template/main -- . ':(exclude)package-lock.json' | git apply -3
 - **Finish.** Resolve `package.json` by hand, run `npm install` to regenerate the lockfile, run
   [Before every push](#before-every-push), then commit.
 
+## Preview image
+
+`npm run verify` and the workflow also run `profile-preview dist`, which renders the built profile in a headless
+Chromium on the `typical` fixture scenario, framed as the platform frames it, and writes `dist/preview/tile.webp`
+(480×270, the image on the owner's gallery cards). The file ships inside the bundle (about 10 KB); the platform
+re-encodes it on deploy and drops it if it cannot decode it, and the deploy stands either way.
+
+- It is optional. Without `playwright-core` or a browser the command prints
+  `profile-preview: warning: no preview written: …` and exits 0, and the deploy goes on without it;
+  `--strict` turns that into exit 1. `PROFILE_PREVIEW_SKIP=1` skips the render on a host that cannot run a browser.
+- It needs a Chromium. The workflow uses the Chrome on GitHub's Ubuntu runners and installs nothing; locally the
+  command finds an installed Chrome or Edge on its own, or takes `--channel msedge` / `--browser <path>`. A machine
+  with no browser at all can install Playwright's headless shell: `npx playwright-core install --only-shell
+  chromium` (about 100 MB).
+- The picture follows the code: re-run `npm run verify` after a visual change. Never edit or commit it; `dist/` is
+  ignored.
+- `npx profile-preview --json dist` prints the outcome. `requiredReadsDone: false`, or a warning that the profile
+  threw errors, means the picture shows a loading or broken state, which is also what a viewer sees first: fix the
+  profile, not the picture. `--scenario <name>` renders another fixture scenario; `--settle-ms <n>` waits longer
+  for transitions.
+
 ## Deploying
 
 `.github/workflows/deploy.yml` runs on every push to `main` and on **Run workflow**. A new push cancels a run that is
 still in progress.
 
 - **build** runs your code with read-only permissions and no way to obtain a deploy token. It runs
-  `npm ci --ignore-scripts`, then `npm run build`, then `npx --no-install profile-check dist`, both writing their
-  output to `build.log`. It uploads `dist/` and `source.tar.gz` (`git archive` of the commit) as
+  `npm ci --ignore-scripts`, then `npm run build`, then `npx --no-install profile-preview dist` (after installing
+  the headless Chromium it needs), then `npx --no-install profile-check dist`, all writing their output to
+  `build.log`. It uploads `dist/` (preview image included) and `source.tar.gz` (`git archive` of the commit) as
   artifacts.
 - **deploy** runs no npm code. It runs `scripts/deploy.sh`, which gets the run's GitHub identity token and sends
   `dist/` as a `tar.gz` to `https://divr.space/v1/deploy`, with the source archive as a second part. If the build
@@ -477,6 +501,8 @@ Where the outcome shows:
 | `forbidden.webassembly`, `forbidden.wasm_file`, `forbidden.rtc_peer_connection`, `forbidden.miner` | banned code, usually from a dependency | remove it |
 | `secrets.<kind>` | a credential in a text file of `dist/` (source maps count) | remove it from the source and rotate it; it became public when it was pushed |
 | `profile-check: warning: … newer than this copy` | the platform runs a newer checker | `npm run update-sdk`, then verify again |
+| `profile-preview: warning: no preview written: …` | no `playwright-core`, or no Chromium it could launch | install Chrome or Edge, pass `--browser <path>`, or `npx playwright-core install --only-shell chromium`; the deploy works without the image |
+| `profile-preview: warning: the profile had not made every required read` | the page had not called `profile.get`, `followers.count`, `following.count` and `posts.list` within 10 s | the preview shows a loading state; make the reads on mount |
 | works in `npm run dev`, broken or blank live | something the sandbox or CSP blocks: remote asset, `fetch`, storage, `eval`, inline script, absolute asset path | read the browser console on the live profile; bundle the asset, remove the call, keep `base: './'` |
 | browser automation times out on a visible control ("element is not stable"), or screenshots never match | the page or the control moves continuously | see [Pages that keep moving](#pages-that-keep-moving) |
 | a click does nothing live (`sdk.ui_refused` in the console) | not called from a real click, target not from a read, a platform dialog open, or two actions in a row | call the method synchronously in the handler, with values from reads |

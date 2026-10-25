@@ -3,8 +3,8 @@
 A starter for your profile: a small static web app that the platform shows inside a sandboxed frame on your profile page. This repository contains:
 
 - a working example profile (React, Vite, Tailwind) that uses every required API and control;
-- one dependency, `@divr/profile-sdk`: the profile SDK with a mock mode for working offline, its React bindings, and the `profile-check` command, which runs the same static checks the platform runs on every deploy;
-- a GitHub Actions workflow that builds the profile and uploads it when you push to `main`.
+- one dependency, `@divr/profile-sdk`: the profile SDK with a mock mode for working offline, its React bindings, the `profile-check` command, which runs the same static checks the platform runs on every deploy, and the `profile-preview` command, which renders the preview image the platform shows for your profile;
+- a GitHub Actions workflow that builds the profile, renders its preview, checks it and uploads it when you push to `main`.
 
 Everything here is yours to change, including the workflow. Any toolchain works, as long as it produces a static `dist/` that passes the checks below.
 
@@ -34,7 +34,8 @@ This repository is generated from the platform's source on every release and tag
 | `npm run build` | Type-checks and builds the static site into `dist/` |
 | `npm run preview` | Serves the built `dist/` locally |
 | `npm run typecheck` | Type-checks only, without building |
-| `npm run verify` | `build`, then `profile-check dist`: the same checks and report the platform produces on deploy. Online, it asks the platform which checker version it runs and judges the SDK check against that version, as the deploy will; offline, it judges against its own |
+| `npm run render-preview` | `profile-preview dist`: renders the built profile in a headless Chromium and writes `dist/preview/tile.webp` ([Preview image](#preview-image)) |
+| `npm run verify` | `build`, then `profile-preview dist`, then `profile-check dist`: the same checks and report the platform produces on deploy. Online, it asks the platform which checker version it runs and judges the SDK check against that version, as the deploy will; offline, it judges against its own |
 | `npm run update-sdk` | `npm install @divr/profile-sdk@latest`: the one command that updates the SDK, its React bindings and the checker together (they are one package with one version) |
 
 When `verify` warns that the platform runs a newer checker, run `npm run update-sdk`, rebuild and verify again. When it reports `sdk.newer_than_platform`, the installed SDK is ahead of the platform: install the version the message names (`npm install @divr/profile-sdk@<version>`) and rebuild.
@@ -193,11 +194,21 @@ Allowed file types: html, js, mjs, css, json, map, png, jpg, jpeg, gif, webp, av
 
 These checks cannot prove that the page shows the required items; they look for the SDK and the control markers. The platform also notices when a live profile never loads its required data, and viewers can report profiles. Moderators can hold a profile that hides required items, which takes it offline until they clear the hold.
 
+## Preview image
+
+Besides the live frame, the platform shows your profile as a 480×270 still on the cards of your gallery. It is rendered from your own build, so it shows your profile as it is:
+
+- `profile-preview dist` (`npm run render-preview`, and part of `npm run verify` and of the workflow) opens `dist/` in a headless Chromium on the `typical` fixture scenario, framed and sandboxed as the platform frames it, waits for the required reads and for fonts and images to load, and writes `dist/preview/tile.webp`. It takes about a second.
+- The file ships inside the bundle like any other file (about 10 KB). On deploy the platform re-encodes it into its box, keeps an animation if you supply one, and drops a file it cannot decode. The deploy stands either way; the `preview` field of the deploy response says whether it was kept.
+- It is optional. Without a browser, `profile-preview` prints a warning and exits 0, and with `PROFILE_PREVIEW_SKIP=1` it writes nothing; the bundle deploys without it and your gallery cards show no image. `--strict` makes a missing preview fail the command instead.
+- It needs a Chromium. The workflow uses the Chrome that GitHub's runners ship; on your machine the command finds an installed Chrome or Edge on its own, or takes one with `--browser <path>` or `--channel msedge`. `playwright-core`, which drives the browser, comes with the SDK.
+- The picture follows the code: a visual change shows up after the next `verify` or push. It is taken on the `typical` scenario with the data `npm run dev` shows; `--scenario <name>` picks another, `--settle-ms <n>` waits longer for transitions. Nothing under `dist/` is committed.
+
 ## How deploying works
 
 `.github/workflows/deploy.yml` has two jobs:
 
-- **build** runs your code and dependencies: `npm ci --ignore-scripts`, `npm run build`, `profile-check dist`. It then uploads `dist/` as an artifact, and `git archive` of the commit (`source.tar.gz`) as a second one. This job has read-only access and cannot obtain a deploy token.
+- **build** runs your code and dependencies: `npm ci --ignore-scripts`, `npm run build`, then `profile-preview dist` (with the Chrome the runner ships), then `profile-check dist`. It then uploads `dist/` as an artifact, and `git archive` of the commit (`source.tar.gz`) as a second one. This job has read-only access and cannot obtain a deploy token.
 - **deploy** runs only `scripts/deploy.sh` (curl and tar, no npm). It asks GitHub for this run's identity token, which proves which repository, owner and branch the upload comes from. It then sends `dist/` as a `tar.gz` to the platform's `/v1/deploy`, with the source archive as a second part. If the build failed, it sends the last 64 KB of the build log to `/v1/deploy/failure` instead, so the failure shows on your config page.
 
 The source archive is for members who fork your profile. The platform keeps it only when you have turned on **Allow forks** on your config page (off by default); otherwise it is discarded on arrival. It must stay under 5 MB and 2,000 entries and is scanned for secrets; a finding discards the archive and deletes the previous one without affecting the deploy itself. One archive is kept per account, replaced by every deploy that goes live. Remove the `git archive` step and the `source` artifact from the workflow if you never want it uploaded.
@@ -216,7 +227,7 @@ The platform accepts only uploads from `main` of a repository owned by your acco
 ## Privacy notes for authors
 
 - **Your bundle is public.** Anyone can download the deployed files, including comments, source maps and bundled JSON. Never put secrets, private notes or other people's personal data in the repository's build output. The secrets check is a safety net, not a guarantee.
-- **What the platform stores about a deploy:** the bundle files; the check report; the SDK and checker versions; and the repository ID, commit SHA and workflow run from the upload's GitHub identity token. For a failed build it also stores the uploaded log tail. Avoid printing anything sensitive during the build.
+- **What the platform stores about a deploy:** the bundle files, the preview image among them (re-encoded); the check report; the SDK and checker versions; and the repository ID, commit SHA and workflow run from the upload's GitHub identity token. For a failed build it also stores the uploaded log tail. Avoid printing anything sensitive during the build.
 - **Your source is shared only when you say so.** The `source.tar.gz` your workflow uploads is kept only while **Allow forks** is on, and then any signed-in member can download it from the Fork sheet; it is deleted the moment you turn forks off. `git archive` packs the committed tree only (no `.git` history, nothing ignored by `.gitattributes export-ignore`), but it does include every committed file: keep secrets and private notes out of the repository, not just out of `dist/`.
 - **What the platform records at run time:** uncaught errors from your page (message and stack, truncated), and counts of refused or rate-limited SDK calls per deployment. Admins use these when reviewing reports; nothing about your viewers is involved.
 - **What your viewers keep private from you.** The SDK never tells the profile who is viewing it. It tells the page two facts, whether the viewer is the owner and whether they follow the owner, so the owner controls can hide on your own profile and the Follow control can read Unfollow. The sandbox blocks the page's requests to other sites, but three things get past it. `openFollow()` called from any click or key press follows your profile at once for a signed-in viewer who does not follow it yet, without their asking, so call it only from a Follow control. A link you offer through `openLink(url)` can be chosen by those two facts; the viewer sees the address and presses Continue, and the site it opens sees the address and the viewer's IP address. And in recent Chrome and Firefox `RTCPeerConnection` still works despite the restriction the platform sends to block it; the terms forbid it and the checks look for it, but the browser does not enforce the restriction. Nothing a viewer does in a platform dialog is reported back, beyond a follow or unfollow changing `viewerFollowsOwner()`, and a signal, whenever any platform dialog closes, that counts may have changed.
