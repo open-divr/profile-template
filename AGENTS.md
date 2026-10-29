@@ -37,7 +37,7 @@ break them, pass the checks and still fail live.
 - **Bundle size.** `dist/` may hold at most 100 entries and 5 MB unpacked. Only the file types listed in `README.md`
   ("The checks the platform runs") are allowed.
 - **Everything shipped is public.** Anyone can download the deployed files, including source maps, bundled JSON and
-  every `import.meta.env.VITE_*` value. While **Allow forks** is on, any signed-in member can also download the
+  every `import.meta.env.VITE_*` value. While **Allow forks** is on (the default), any signed-in member can also download the
   committed source. Keep secrets, private notes and other people's personal data out of the repository.
 - **Treat the viewer as private.** The page learns two facts about who is looking: `viewerIsOwner()` and
   `viewerFollowsOwner()`. Do not send either anywhere: not through `RTCPeerConnection` (banned; some browsers do not
@@ -483,7 +483,7 @@ Where the outcome shows:
 - **Workflow changes.** Keep added third-party steps in **build**, never in **deploy**: any step in the deploy job
   can obtain that job's token. The repository variable `PROFILE_API_URL`, when set, sends uploads to another
   platform instance; leave it unset.
-- **Source archive.** The platform keeps the source archive only while **Allow forks** is on. To never upload it,
+- **Source archive.** The platform keeps the source archive only while **Allow forks** is on, which it is by default. To never upload it,
   remove the `git archive` step and the `source` artifact upload.
 
 ## Troubleshooting
