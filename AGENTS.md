@@ -468,13 +468,27 @@ still in progress.
 - **deploy** runs no npm code. It runs `scripts/deploy.sh`, which gets the run's GitHub identity token and sends
   `dist/` as a `tar.gz` to `https://divr.space/v1/deploy`, with the source archive as a second part. If the build
   job failed, it sends the last 64 KB of `build.log` to `/v1/deploy/failure` instead.
+- **The deploy queue.** The platform checks uploads in a queue. `deploy.sh` asks it to wait up to 20 s
+  (`Prefer: wait=20`); a busy queue answers `202` with `"status":"pending"`, the `deployId`, the upload's `position`
+  and `estimatedWaitSeconds`. The script then polls `GET /v1/deploy/<deployId>` every 5 s, with a fresh identity
+  token each time, for up to 10 minutes, and the job stays red unless the upload went live. A poll that gets no
+  answer, a 429 or a 5xx polls again (no sooner than its `Retry-After`); any other refusal fails the job. The
+  upload itself is sent again (up to 5 times) only after no answer, a 408, a 500, 502, 503 or 504, or a 429 that
+  carries `Retry-After`; a 429 without it (`daily_cap_reached`) and any other 4xx fail the job at once. Only the newest
+  waiting upload of an account is kept: a push while an earlier one still waits replaces it (`failed`, "superseded
+  by …"), and an upload not checked within an hour fails as "timed out in queue". A rollback or gallery pick on the
+  config page made while an upload waits stands: the upload ends `ready` but not live (`"activation":
+  "later_choice"`), and the job fails saying so. An upload that went live (`"activation": "activated"`) and was
+  replaced by a newer one before the script read it passes.
 
 Where the outcome shows:
 
 | Outcome | Actions log | https://divr.space/config |
 | --- | --- | --- |
-| accepted | deploy job green; the response JSON has `"status":"ready"` | **Ready**, live at once |
-| rejected by the platform's checks | deploy job red; the 422 response JSON holds `report.findings` | **Rejected by checks**, with the report |
+| accepted | deploy job green; the last response JSON has `"status":"ready"` | **Ready**, live at once |
+| waiting in the deploy queue | deploy job running; it prints the queue position until the outcome arrives | **Queued for checks**, with the position |
+| rejected by the platform's checks | deploy job red; the 422 (or polled) response JSON holds `report.findings` | **Rejected by checks**, with the report |
+| replaced by a newer push, or not checked within an hour | deploy job red; the polled JSON has `"status":"failed"` and the reason in `buildLogTail` | **Build failed**, with the reason as its log |
 | `npm ci`, the build or `profile-check` failed in the build job | build job red; findings in its `profile-check` step | **Build failed**, with the tail of `build.log`: the build output, then the checker's report when `profile-check` ran |
 | upload refused (403, 429) | deploy job red; the error JSON | nothing recorded |
 
@@ -483,8 +497,34 @@ Where the outcome shows:
 - **Workflow changes.** Keep added third-party steps in **build**, never in **deploy**: any step in the deploy job
   can obtain that job's token. The repository variable `PROFILE_API_URL`, when set, sends uploads to another
   platform instance; leave it unset.
-- **Source archive.** The platform keeps the source archive only while **Allow forks** is on, which it is by default. To never upload it,
-  remove the `git archive` step and the `source` artifact upload.
+- **Source archive.** The platform keeps the source archive for the owner, and offers it to forkers only while **Allow forks** is on,
+  which it is by default. To never upload it, remove the `git archive` step and the `source` artifact upload.
+
+## Deploy from your own machine or an agent
+
+You can also deploy without a push: through the Divr MCP server, run the pipeline on the machine you work on and
+upload the result yourself.
+
+1. The owner adds `https://divr.space/mcp` to your harness as an MCP server with OAuth. In Claude Code:
+   `claude mcp add --transport http divr https://divr.space/mcp`. On first use the owner's browser opens on Divr and
+   the owner approves the connection once. It lasts 30 days; the owner can revoke it at any time under
+   **Config → Connections**.
+2. Call the `pipeline` tool and follow its steps in order. They are the workflow's steps, run locally:
+   `npm ci --ignore-scripts`, `npm run build`, `profile-preview dist`, `profile-check dist`, the source archive and
+   `tar` of `dist/`, then an upload with a short-lived grant that is good for one upload. Never print the grant or
+   write it to a committed file. If the build or a check fails, the steps say how to report the failure so it shows
+   on the config page.
+3. Read the upload's response or the deploy status the server reports: `ready` with `live: true` is done; a 422
+   carries `report.findings`. Fix them, rebuild and upload again with a new grant. A `202` with `"status":"pending"`
+   means the upload is still waiting in the deploy queue: call the `deploy_status` tool with its `deployId` until it
+   is `ready`, `rejected` or `failed` (a failed upload carries the reason in `buildLogTail`).
+
+- The server can also hand you a starting point: the template, the owner's deployed source, or the shared source of
+  a member who allows forks. Taking another member's source unlinks the owner's repository, as forking does.
+- The workflow keeps working unchanged; a push to `main` still deploys. Uploads from an agent count toward the same
+  daily deploy limit, and the config page lists them as **uploaded by an agent**.
+- Only the preview image needs a local Chromium ([Preview image](#preview-image)); without one the deploy goes live
+  with no image.
 
 ## Troubleshooting
 

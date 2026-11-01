@@ -27,8 +27,8 @@ jobs:
       - run: set -o pipefail; npx --no-install profile-check dist 2>&1 | tee -a build.log
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: dist, path: dist/, if-no-files-found: error, retention-days: 1 }
-      # The committed tree, for members who fork your profile's source. The platform keeps it only while
-      # you allow forks (Config page); otherwise it is discarded on arrival.
+      # The committed tree. The platform keeps it for you, and offers it to members who fork your profile's
+      # source while you allow forks (Config page).
       - run: git archive --format=tar.gz -o source.tar.gz HEAD
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: source, path: source.tar.gz, if-no-files-found: error, retention-days: 1 }
