@@ -15,7 +15,7 @@
     "update-sdk": "npm install @divr/profile-sdk@latest"
   },
   "dependencies": {
-    "@divr/profile-sdk": "1.1.0",
+    "@divr/profile-sdk": "1.2.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
